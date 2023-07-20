@@ -161,5 +161,8 @@ python3 main.py --gpu 0 --resume ./pretrained/mit_b3.pth --evaluate
 
 训练：
 ```bash
-
+#python main.py --backbone mit_b3 -c exp_name --lamda 1e-6 --gpu 0 1 2
+python main.py --backbone mit_b3 -c exp_name --lamda 1e-6 --gpu 0
+# 启动tensorboard可视化
+tensorboard --logdir=logs
 ```
