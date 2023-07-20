@@ -127,3 +127,39 @@ If you find our work useful for your research, please consider citing the follow
 ```
 
 
+# 笔记
+在网址中下载[数据集](https://drive.google.com/drive/folders/1mXmOXVsd5l9-gYHk92Wpn6AcKAbE0m3X)，并将数据集放在路径: `/data/net/dl_data/ProjectDatasets_bkx/NYUDv2`中
+
+SegFormer预训练模型请从[此repo](https://github.com/NVlabs/SegFormer)提供的[此链接](https://connecthkuhk-my.sharepoint.com/personal/xieenze_connect_hku_hk/_layouts/15/onedrive.aspx?id=%2Fpersonal%2Fxieenze%5Fconnect%5Fhku%5Fhk%2FDocuments%2Fsegformer%2Fpretrained%5Fmodels&ga=1)下载，并将下载好的预训练模型解压到`TokenFusion/semantic_segmentation/pretrained/`中。
+
+预训练模型(backbone:SegFormer-B3)下载：[下载地址](https://drive.google.com/drive/folders/14fi8aABFYqGF7LYKHkiJazHA58OBW1AW)，下载`model-best.pth.tar`到`TokenFusion/semantic_segmentation/pretrained_models/`文件夹中。
+
+
+环境配置：
+```bash
+conda create -n tokenfusion python=3.7
+conda activate tokenfusion
+conda install pytorch==1.12.1 torchvision==0.13.1 cudatoolkit=11.3 -c pytorch
+
+pip3 install opencv-python matplotlib
+pip3 install timm
+pip3 install tensorboard tensorboardX
+```
+
+安装mmcv，请遵循[此网址](https://mmcv.readthedocs.io/en/latest/get_started/installation.html)安装
+```bash
+python -c 'import torch;print(torch.__version__);print(torch.version.cuda)'
+>> 1.12.1
+>> 11.3
+pip3 install mmcv==2.0.0rc4 -f https://download.openmmlab.com/mmcv/dist/cu113/torch1.12/index.html
+```
+
+验证：
+```bash
+python3 main.py --gpu 0 --resume ./pretrained/mit_b3.pth --evaluate
+```
+
+训练：
+```bash
+
+```

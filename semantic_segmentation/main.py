@@ -19,6 +19,12 @@ from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm
 
+from tensorboardX import SummaryWriter
+# 创建 TensorboardX 的 SummaryWriter 对象
+writer = SummaryWriter('./logs/tokenfusion_experiment')
+# define a global step counter
+global_step = 0
+
 
 def get_arguments():
     """Parse all the arguments provided from the CLI.
@@ -230,6 +236,8 @@ def train(segmenter, input_types, train_loader, optimizer, epoch,
       freeze_bn (bool) : whether to keep BN params intact
 
     """
+    global global_step  # declare to use global variable
+
     train_loader.dataset.set_stage('train')
     segmenter.train()
     if freeze_bn:
@@ -265,8 +273,15 @@ def train(segmenter, input_types, train_loader, optimizer, epoch,
         if print_loss:
             print('step: %-3d: loss=%.2f' % (i, loss), flush=True)
         optimizer.step()
+
+        # Add for TensorBoardX
+        writer.add_scalar('Train/Loss', loss.data, global_step)
+        global_step += 1  # increase global step by 1
+
         losses.update(loss.item())
         batch_time.update(time.time() - start)
+
+
     # slim_params_list = []
     # for slim_param in slim_params:
     #     slim_params_list.extend(slim_param.cpu().data.numpy())
@@ -442,6 +457,8 @@ def main():
         #     enc_params, dec_params, args.optim_dec)
 
         for epoch in range(min(args.num_epoch[task_idx], total_epoch - epoch_start)):
+            # Add for TensorBoardX: log learning rate
+            writer.add_scalar('Train/Learning_rate', optimizer.param_groups[0]['lr'], global_step)
             train(segmenter, args.input, train_loader, optimizer, epoch_current,
                   segm_crit, args.freeze_bn, args.lamda, args.print_loss)
             if (epoch + 1) % (args.val_every) == 0:
@@ -453,6 +470,9 @@ def main():
 
     print_log('All stages are now finished. Best Val is {:.3f}'.format(saver.best_val))
     helpers.logger.close()
+
+    # Add for TensorBoardX: close the writer
+    writer.close()
 
 
 if __name__ == '__main__':

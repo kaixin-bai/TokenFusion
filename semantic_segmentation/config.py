@@ -1,11 +1,17 @@
 import numpy as np
 
+# # DATASET PARAMETERS
+# DATASET = 'nyudv2'
+# TRAIN_DIR = './data/nyudv2'  # 'Modify data path'
+# VAL_DIR = TRAIN_DIR
+# TRAIN_LIST = './data/nyudv2/train.txt'
+# VAL_LIST = './data/nyudv2/val.txt'
 # DATASET PARAMETERS
 DATASET = 'nyudv2'
-TRAIN_DIR = './data/nyudv2'  # 'Modify data path'
+TRAIN_DIR = '/data/net/dl_data/ProjectDatasets_bkx/nyudv2'  # 'Modify data path'
 VAL_DIR = TRAIN_DIR
-TRAIN_LIST = './data/nyudv2/train.txt'
-VAL_LIST = './data/nyudv2/val.txt'
+TRAIN_LIST = '/data/net/dl_data/ProjectDatasets_bkx/nyudv2/train.txt'
+VAL_LIST = '/data/net/dl_data/ProjectDatasets_bkx/nyudv2/val.txt'
 
 
 SHORTER_SIDE = 350
@@ -16,8 +22,8 @@ NORMALISE_PARAMS = [1./255,  # Image SCALE
                     np.array([0.485, 0.456, 0.406]).reshape((1, 1, 3)),  # Image MEAN
                     np.array([0.229, 0.224, 0.225]).reshape((1, 1, 3)),  # Image STD
                     1./5000]  # Depth SCALE
-BATCH_SIZE = 6
-NUM_WORKERS = 16
+BATCH_SIZE = 14 # 6
+NUM_WORKERS = 28  # 16
 NUM_CLASSES = 40
 LOW_SCALE = 0.5
 HIGH_SCALE = 2.0
