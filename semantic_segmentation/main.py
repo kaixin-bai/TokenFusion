@@ -122,6 +122,7 @@ def get_arguments():
 
 def create_segmenter(num_classes, gpu, backbone):
     """Create Encoder; for now only ResNet [50,101,152]"""
+    # backbone: 'mit_b1'; gpu: [0]; num_classes: 40
     segmenter = WeTr(backbone, num_classes)
     param_groups = segmenter.get_param_groups()
     assert(torch.cuda.is_available())
@@ -211,7 +212,7 @@ def create_optimisers(lr_enc, lr_dec, mom_enc, mom_dec, wd_enc, wd_dec, param_en
 
 
 def load_ckpt(ckpt_path, ckpt_dict):
-    ckpt = torch.load(ckpt_path, map_location='cpu')
+    ckpt = torch.load(ckpt_path, map_location='cuda')
     for (k, v) in ckpt_dict.items():
         if k in ckpt:
             v.load_state_dict(ckpt[k])
@@ -314,6 +315,9 @@ def validate(segmenter, input_types, val_loader, epoch, num_classes=-1, save_ima
     Returns:
       Mean IoU (float)
     """
+    """
+    input_types: ['rgb', 'depth']
+    """
     global best_iou
     val_loader.dataset.set_stage('val')
     segmenter.eval()
@@ -325,12 +329,40 @@ def validate(segmenter, input_types, val_loader, epoch, num_classes=-1, save_ima
             # print('valid input:', sample['rgb'].shape, sample['depth'].shape, sample['mask'].shape)
             start = time.time()
             inputs = [sample[key].float().cuda() for key in input_types]
+            """
+            # 可视化inputs以便debug，这里inputs的内容分别是rgb和depth;depth的三个通道是三个深度图叠加
+            import matplotlib.pyplot as plt
+            # 将Tensor从GPU转移到CPU，并将其转换为NumPy数组
+            inputs_np = [input_tensor.cpu().numpy() for input_tensor in inputs]
+            # 去掉批处理尺寸并归一化
+            inputs_normalized = [
+                (input_np.squeeze(0).transpose(1, 2, 0) - input_np.min()) / (input_np.max() - input_np.min()) for
+                input_np in inputs_np]
+            # 可视化
+            fig, axs = plt.subplots(1, 2, figsize=(10, 5))
+            for i, input_normalized in enumerate(inputs_normalized):
+                axs[i].imshow(input_normalized)
+                axs[i].axis('off')
+            plt.show()
+            """
             target = sample['mask']
+            """
+            # target是mask
+            target_np = target.cpu().numpy()
+            target_np = target_np.transpose(1, 2, 0)
+            # 可视化
+            from matplotlib import pyplot as plt
+            from matplotlib.colors import ListedColormap
+            colors = np.random.rand(40, 3)
+            cmap = ListedColormap(colors)
+            plt.imshow(target_np, cmap=cmap)
+            plt.show()
+            """
             gt = target[0].data.cpu().numpy().astype(np.uint8)
             gt_idx = gt < num_classes  # Ignore every class index larger than the number of classes
             # Compute outputs
             # outputs, alpha_soft = segmenter(inputs)
-            outputs, _ = segmenter(inputs)
+            outputs, _ = segmenter(inputs)  # batch个 4个semantic分割图，有40类。TODO：为啥是4个图？
             for idx, output in enumerate(outputs):
                 output = cv2.resize(output[0, :num_classes].data.cpu().numpy().transpose(1, 2, 0),
                                     target.size()[1:][::-1],

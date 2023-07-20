@@ -154,9 +154,10 @@ python -c 'import torch;print(torch.__version__);print(torch.version.cuda)'
 pip3 install mmcv==2.0.0rc4 -f https://download.openmmlab.com/mmcv/dist/cu113/torch1.12/index.html
 ```
 
-验证：
+验证：  \
+注意：原始repo中验证没有给定backbone，代码里是mit_b1，会导致推理错误！推理的时候一定要给定backbone。
 ```bash
-python3 main.py --gpu 0 --resume ./pretrained/mit_b3.pth --evaluate
+python3 main.py --gpu 0 --backbone mit_b3 --resume ./pretrained/mit_b3.pth --evaluate
 ```
 
 训练：
