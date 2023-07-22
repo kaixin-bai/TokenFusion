@@ -2,6 +2,7 @@
 import os, sys, argparse, re
 import random, time
 import warnings
+
 warnings.filterwarnings('ignore')
 import cv2
 import numpy as np
@@ -20,6 +21,7 @@ from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm
 
 from tensorboardX import SummaryWriter
+
 # 创建 TensorboardX 的 SummaryWriter 对象
 writer = SummaryWriter('./logs/tokenfusion_experiment')
 # define a global step counter
@@ -94,7 +96,7 @@ def get_arguments():
                         help='Whether print losses during training.')
     parser.add_argument('--save-image', type=int, default=100,
                         help='Number to save images during evaluating, -1 to save all.')
-    parser.add_argument('-i', '--input', default=['rgb', 'depth'], type=str, nargs='+', 
+    parser.add_argument('-i', '--input', default=['rgb', 'depth'], type=str, nargs='+',
                         help='input type (image, depth)')
 
     # Optimisers
@@ -120,12 +122,12 @@ def get_arguments():
     return parser.parse_args()
 
 
-def create_segmenter(num_classes, gpu, backbone):
+def create_segmenter(num_classes, gpu, backbone:str):
     """Create Encoder; for now only ResNet [50,101,152]"""
     # backbone: 'mit_b1'; gpu: [0]; num_classes: 40
     segmenter = WeTr(backbone, num_classes)
     param_groups = segmenter.get_param_groups()
-    assert(torch.cuda.is_available())
+    assert (torch.cuda.is_available())
     segmenter.to(gpu[0])
     segmenter = torch.nn.DataParallel(segmenter, gpu)
     # segmenter = DistributedDataParallel(wetr, device_ids=[-1], find_unused_parameters=True)
@@ -160,7 +162,7 @@ def create_loaders(dataset, inputs, train_dir, val_dir, train_list, val_list,
     # Custom libraries
     from utils.datasets import SegDataset as Dataset
     from utils.transforms import Normalise, Pad, RandomCrop, RandomMirror, ResizeAndScale, \
-                                 CropAlignToMask, ResizeAlignToMask, ToTensor, ResizeInputs
+        CropAlignToMask, ResizeAlignToMask, ToTensor, ResizeInputs
 
     input_names, input_mask_idxs = ['rgb', 'depth'], [0, 2, 1]
 
@@ -168,7 +170,7 @@ def create_loaders(dataset, inputs, train_dir, val_dir, train_list, val_list,
     composed_trn = transforms.Compose([
         AlignToMask(),
         ResizeAndScale(shorter_side, low_scale, high_scale),
-        Pad(crop_size, [123.675, 116.28 , 103.53], ignore_label),
+        Pad(crop_size, [123.675, 116.28, 103.53], ignore_label),
         RandomMirror(),
         RandomCrop(crop_size),
         ResizeInputs(input_size),
@@ -219,7 +221,7 @@ def load_ckpt(ckpt_path, ckpt_dict):
     best_val = ckpt.get('best_val', 0)
     epoch_start = ckpt.get('epoch_start', 0)
     print_log('Found checkpoint at {} with best_val {:.4f} at epoch {}'.
-        format(ckpt_path, best_val, epoch_start))
+              format(ckpt_path, best_val, epoch_start))
     return best_val, epoch_start
 
 
@@ -268,7 +270,7 @@ def train(segmenter, input_types, train_loader, optimizer, epoch,
             for mask in masks:
                 L1_loss += sum([torch.abs(m).sum().cuda() for m in mask])
             loss += lamda * L1_loss
-        
+
         optimizer.zero_grad()
         loss.backward()
         if print_loss:
@@ -281,7 +283,6 @@ def train(segmenter, input_types, train_loader, optimizer, epoch,
 
         losses.update(loss.item())
         batch_time.update(time.time() - start)
-
 
     # slim_params_list = []
     # for slim_param in slim_params:
@@ -299,8 +300,8 @@ def train(segmenter, input_types, train_loader, optimizer, epoch,
         portion_depths.append(portion_depth)
     portion_rgbs = sum(portion_rgbs) / len(portion_rgbs)
     portion_depths = sum(portion_depths) / len(portion_depths)
-    print('Epoch %d, portion of scores<0.02 (rgb depth): %.2f%% %.2f%%' %\
-        (epoch, portion_rgbs * 100, portion_depths * 100), flush=True)
+    print('Epoch %d, portion of scores<0.02 (rgb depth): %.2f%% %.2f%%' % \
+          (epoch, portion_rgbs * 100, portion_depths * 100), flush=True)
 
 
 def validate(segmenter, input_types, val_loader, epoch, num_classes=-1, save_image=0):
@@ -373,10 +374,16 @@ def validate(segmenter, input_types, val_loader, epoch, num_classes=-1, save_ima
                     img = make_validation_img(inputs[0].data.cpu().numpy(),
                                               inputs[1].data.cpu().numpy(),
                                               sample['mask'].data.cpu().numpy(),
-                                              output[np.newaxis,:])
+                                              output[np.newaxis, :])
                     os.makedirs('imgs', exist_ok=True)
-                    cv2.imwrite('imgs/validate_%d.png' % i, img[:,:,::-1])
+                    cv2.imwrite('imgs/validate_%d.png' % i, img[:, :, ::-1])
                     print('imwrite at imgs/validate_%d.png' % i)
+
+                    # 将预测结果、输入图像和真实标签写入TensorBoard
+                    img = img.transpose((2, 0, 1))  # 转换到[channel, height, width]
+                    img = np.expand_dims(img, axis=0)  # 增加batch维度
+                    writer.add_images('Validation/Images', img, global_step)
+
 
     for idx, input_type in enumerate(input_types + ['ens']):
         glob, mean, iou = getScores(conf_mat[idx])
@@ -389,7 +396,7 @@ def validate(segmenter, input_types, val_loader, epoch, num_classes=-1, save_ima
         #     alpha = '    %.2f' % alpha_soft[idx]
         input_type_str = '(%s)' % input_type
         print_log('Epoch %-4d %-7s   glob_acc=%-5.2f    mean_acc=%-5.2f    IoU=%-5.2f%s%s' %
-            (epoch, input_type_str, glob, mean, iou, alpha, best_iou_note))
+                  (epoch, input_type_str, glob, mean, iou, alpha, best_iou_note))
     print_log('')
     return iou
 
@@ -421,7 +428,7 @@ def main():
         print_log('')
     # segmenter = model_init(segmenter, args.enc, len(args.input), imagenet=args.enc_pretrained)
     print_log('Loaded Segmenter {}, ImageNet-Pre-Trained={}, #PARAMS={:3.2f}M'
-          .format(args.backbone, args.enc_pretrained, compute_params(segmenter) / 1e6))
+              .format(args.backbone, args.enc_pretrained, compute_params(segmenter) / 1e6))
     # Restore if any
     best_val, epoch_start = 0, 0
     if args.resume:
@@ -436,12 +443,12 @@ def main():
     # Saver
     saver = Saver(args=vars(args), ckpt_dir=ckpt_dir, best_val=best_val,
                   condition=lambda x, y: x > y)  # keep checkpoint with the best validation score
-    
+
     lrs = [6e-5, 3e-5, 1.5e-5]
 
     for task_idx in range(args.num_stages):
         optimizer = PolyWarmupAdamW(
-        params=[
+            params=[
                 {
                     "params": param_groups[0],
                     "lr": lrs[task_idx],
@@ -458,13 +465,13 @@ def main():
                     "weight_decay": 0.01,
                 },
             ],
-            lr = lrs[task_idx],
-            weight_decay = 0.01,
-            betas = [0.9, 0.999],
-            warmup_iter = 1500,
-            max_iter = 40000,
-            warmup_ratio = 1e-6,
-            power = 1.0
+            lr=lrs[task_idx],
+            weight_decay=0.01,
+            betas=[0.9, 0.999],
+            warmup_iter=1500,
+            max_iter=40000,
+            warmup_ratio=1e-6,
+            power=1.0
         )
         total_epoch = sum([args.num_epoch[idx] for idx in range(task_idx + 1)])
         if epoch_start >= total_epoch:
@@ -487,7 +494,7 @@ def main():
         #     args.mom_enc, args.mom_dec,
         #     args.wd_enc, args.wd_dec,
         #     enc_params, dec_params, args.optim_dec)
-
+        val_step = 0  # 在训练循环开始前初始化
         for epoch in range(min(args.num_epoch[task_idx], total_epoch - epoch_start)):
             # Add for TensorBoardX: log learning rate
             writer.add_scalar('Train/Learning_rate', optimizer.param_groups[0]['lr'], global_step)
@@ -495,7 +502,9 @@ def main():
                   segm_crit, args.freeze_bn, args.lamda, args.print_loss)
             if (epoch + 1) % (args.val_every) == 0:
                 miou = validate(segmenter, args.input, val_loader, epoch_current, args.num_classes)
-                saver.save(miou, {'segmenter' : segmenter.state_dict(), 'epoch_start' : epoch_current})
+                saver.save(miou, {'segmenter': segmenter.state_dict(), 'epoch_start': epoch_current})
+                writer.add_scalar('Validation/mIoU', miou, val_step)  # 使用val_step而不是global_step
+                val_step += 1  # 每个验证周期结束时更新val_step
             epoch_current += 1
 
         print_log('Stage {} finished, time spent {:.3f}min\n'.format(task_idx, (time.time() - start) / 60.))
@@ -509,4 +518,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

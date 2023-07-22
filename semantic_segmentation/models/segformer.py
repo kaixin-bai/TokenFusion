@@ -78,7 +78,7 @@ class SegFormerHead(nn.Module):
 
 
 class WeTr(nn.Module):
-    def __init__(self, backbone, num_classes=20, embedding_dim=256, pretrained=True):
+    def __init__(self, backbone:str, num_classes=20, embedding_dim=256, pretrained=True):
         super().__init__()
         self.num_classes = num_classes  # 40
         self.embedding_dim = embedding_dim  # 256
