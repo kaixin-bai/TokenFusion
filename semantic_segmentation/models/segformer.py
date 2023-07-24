@@ -117,7 +117,7 @@ class WeTr(nn.Module):
         return param_groups
 
     def forward(self, x):
-        x, masks = self.encoder(x)  # 输入的x: {list:2} 每个元组都是一个Tensor [1,3,486,625]，分别是rgb和depth(TODO：为什么depth是3通道，直接扩充的吗？)
+        x, masks = self.encoder(x)  # 输入的x: {list:2} 每个元组都是一个Tensor [1,3,486,625]，分别是rgb和depth，depth是三通道，直接扩充的
         x = [self.decoder(x[0]), self.decoder(x[1])] # x为{list:2}, 每个元素是一个{list:4}，其中是4个Tensor，shape分别是[1,64,117,157],[1,128,59,79],[1,320,30,40],[1,512,15,20]
         ens = 0
         alpha_soft = F.softmax(self.alpha)
