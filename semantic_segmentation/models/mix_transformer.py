@@ -19,6 +19,10 @@ class Mlp(nn.Module):
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
         self.fc1 = ModuleParallel(nn.Linear(in_features, hidden_features))
+        """
+        这个DWConv就是segformer的block的mix-ffn公式里的Conv3x3
+        "Mix-FFN将3×3卷积和一个MLP混合到每个FFN中。在实验中证明3×3卷积足以为Transformer提供位置信息。使用深度卷积来减少参数数量并提高效率"
+        """
         self.dwconv = DWConv(hidden_features)
         self.act = ModuleParallel(act_layer())
         self.fc2 = ModuleParallel(nn.Linear(hidden_features, out_features))
@@ -172,6 +176,10 @@ class Block(nn.Module):
         self.drop_path = ModuleParallel(DropPath(drop_path)) if drop_path > 0. else ModuleParallel(nn.Identity())
         self.norm2 = norm_layer(dim)
         mlp_hidden_dim = int(dim * mlp_ratio)
+        """
+        self.mlp是segformer的block中mix-ffn的部分
+        MixFFN是SegFormer模型中的一种前馈网络结构，用于进行非线性特征转换
+        """
         self.mlp = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=act_layer, drop=drop)
         # self.exchange = TokenExchange()
 

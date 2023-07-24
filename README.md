@@ -167,3 +167,6 @@ python main.py --backbone mit_b3 -c exp_name --lamda 1e-6 --gpu 0
 # 启动tensorboard可视化
 tensorboard --logdir=logs
 ```
+
+其他：  \
+[论文笔记——Segformer: 一种基于Transformer的语义分割方法](https://zhuanlan.zhihu.com/p/441975127)
