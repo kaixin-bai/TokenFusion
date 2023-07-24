@@ -381,7 +381,7 @@ def validate(segmenter, input_types, val_loader, epoch, num_classes=-1, save_ima
             gt_idx = gt < num_classes  # Ignore every class index larger than the number of classes
             # Compute outputs
             # outputs, alpha_soft = segmenter(inputs)
-            outputs, _ = segmenter(inputs)  # batch个 4个semantic分割图，有40类。TODO：为啥是4个图？
+            outputs, _ = segmenter(inputs)  # batch个 4个semantic分割图，有40类
             for idx, output in enumerate(outputs):
                 output = cv2.resize(output[0, :num_classes].data.cpu().numpy().transpose(1, 2, 0),
                                     target.size()[1:][::-1],
