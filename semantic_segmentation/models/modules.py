@@ -19,6 +19,11 @@ class TokenExchange(nn.Module):
 
 
 class ModuleParallel(nn.Module):
+    """
+    ModuleParallel类允许我们将一个PyTorch模块应用于多个输入张量并行进行处理。在前向传播时，我们可以将多个输入张量传递给这个模块，并且模块将会
+    并行地处理每个输入，并返回一个包含处理结果的列表。
+    """
+
     def __init__(self, module):
         super(ModuleParallel, self).__init__()
         self.module = module

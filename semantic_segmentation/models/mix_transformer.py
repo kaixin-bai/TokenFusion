@@ -157,6 +157,18 @@ class Block(nn.Module):
             num_heads=num_heads, qkv_bias=qkv_bias, qk_scale=qk_scale,
             attn_drop=attn_drop, proj_drop=drop, sr_ratio=sr_ratio)
         # NOTE: drop path for stochastic depth, we shall see if this is better than dropout here
+        """
+        Dropout(丢弃法)：
+        1.在每个训练迭代中，每个神经元都有一定的概率被丢弃（不参与计算），概率由dropout的参数控制
+        2.通常应用于全连接层或卷积层的输出，目的是防止模型过度依赖特定的神经元，从而提高模型的泛化能力
+        -------------------------
+        DropPath(随机深度):
+        1.在训练时随机丢弃整个模块（例如整个层或一组连续的层）的技术。在每个训练迭代中，每个模块都有一定的概率被丢弃，概率由DropPath的参数控制
+        2.通常应用于深度神经网络的层级结构，目的是防止模型对于某些特定层级过度依赖，增强模型的鲁棒性
+        -------------------------
+        二者只在训练阶段使用，在推理（测试）阶段不会应用任何随机丢弃
+        都是用于正则化神经网络，帮助防止过拟合
+        """
         self.drop_path = ModuleParallel(DropPath(drop_path)) if drop_path > 0. else ModuleParallel(nn.Identity())
         self.norm2 = norm_layer(dim)
         mlp_hidden_dim = int(dim * mlp_ratio)
@@ -209,6 +221,10 @@ class OverlapPatchEmbed(nn.Module):
         self.patch_size = patch_size
         self.H, self.W = img_size[0] // patch_size[0], img_size[1] // patch_size[1]
         self.num_patches = self.H * self.W
+        """
+        这行代码创建了一个名为self.proj的属性，并将其初始化为一个ModuleParallel实例。这个实例使用nn.Conv2d来执行对输入图像的卷积操作，从而
+        将输入图像中的每个小块（patch）转换为一个高维的向量（embedding）。这个操作被称为"Patch Embedding"，常用于处理图像数据。
+        """
         self.proj = ModuleParallel(nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=stride,
                               padding=(patch_size[0] // 2, patch_size[1] // 2)))
         self.norm = LayerNormParallel(embed_dim)
@@ -231,13 +247,27 @@ class OverlapPatchEmbed(nn.Module):
                 m.bias.data.zero_()
 
     def forward(self, x):
-        x = self.proj(x)
+        x = self.proj(x)  # {list:2}中的每个tensor从[batch_size,3,500,500]变为[batch_size,64,125,125]
         _, _, H, W = x[0].shape
         x = [x_.flatten(2).transpose(1, 2) for x_ in x]
         x = self.norm(x)
         return x, H, W
 
-
+"""
+segformer的实现
+------------------------------------------------------------------------------------------------------------------------
+self.patch_embed1, self.patch_embed2, self.patch_embed3, self.patch_embed4：这些是SegFormer中的Patch Embedding模块，用于将输入
+图像切分成不同大小的图像块（patch），并将每个图像块转换为高维向量（embedding）。这些Patch Embedding模块将图像按不同比例缩小，以便多尺度的分割任务。
+------------------------------------------------------------------------------------------------------------------------
+self.block1, self.block2, self.block3, self.block4：这些是SegFormer中的Transformer编码器模块，称为“Block”。
+每个Block由多个Transformer层组成，用于对输入的图像块进行特征编码。depths参数指定了每个Block中的Transformer层数。
+------------------------------------------------------------------------------------------------------------------------
+self.score_predictor：这是用于预测每个图像块的分类得分的模块，它对应每个Block，即self.block1、self.block2等。在SegFormer中，对于每个Block，使用了独立的预测模块来产生图像块的得分。
+------------------------------------------------------------------------------------------------------------------------
+def forward_features(self, x):：这个方法执行SegFormer的特征提取部分，将输入的图像经过Patch Embedding和Transformer编码器模块，得到多尺度的特征表示。
+------------------------------------------------------------------------------------------------------------------------
+def forward(self, x):：这个方法将调用forward_features方法来进行特征提取，注意力掩码被存储在masks列表中，用于后续的处理。
+"""
 class MixVisionTransformer(nn.Module):
     def __init__(self, img_size=224, patch_size=16, in_chans=3, num_classes=1000, embed_dims=[64, 128, 256, 512],
                  num_heads=[1, 2, 4, 8], mlp_ratios=[4, 4, 4, 4], qkv_bias=False, qk_scale=None, drop_rate=0.,
@@ -248,6 +278,10 @@ class MixVisionTransformer(nn.Module):
         self.depths = depths
         self.embed_dims = embed_dims
 
+        """
+        这里和传统的segformer稍微不同的是，patch_embed使用OverlapPatchEmbed,会对输入进行proj操作(对传入列表内的每个部分都进行flatten后LayerNormParallel操作)
+        如果传入是list为1就和传统的segformer一样
+        """
         # patch_embed
         self.patch_embed1 = OverlapPatchEmbed(img_size=img_size, patch_size=7, stride=4, in_chans=in_chans,
                                               embed_dim=embed_dims[0])

@@ -273,7 +273,7 @@ def train(segmenter, input_types, train_loader, optimizer, epoch,
         start = time.time()
         inputs = [sample[key].cuda().float() for key in input_types]
         target = sample['mask'].cuda().long()
-        # Compute outputs
+        # Compute outputs; inputs:{list:2}分别是rgb和三通道的depth，每个list都是个[batch_size,3通道,500,500]的tensor
         outputs, masks = segmenter(inputs)
         loss = 0
         for output in outputs:
