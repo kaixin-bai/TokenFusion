@@ -243,10 +243,28 @@ def train(segmenter, input_types, train_loader, optimizer, epoch,
 
     train_loader.dataset.set_stage('train')
     segmenter.train()
-    if freeze_bn:
+    """
+    在深度神经网络训练过程中，Batch Normalization（批归一化）层在一定程度上起到了正则化的作用，可以加速训练并提高模型的收敛速度。然而，在模型的
+    训练过程中，特别是当模型接近收敛状态时，Batch Normalization层可能会对输入数据的统计信息（均值和方差）过于敏感，从而导致模型在测试数据上的性
+    能不如在训练数据上表现好。
+    --------------------------------------------------------------------------------------------------------------------
+    具体来说，通常在模型训练的后期阶段，当模型已经较好地拟合了训练数据，并且过拟合的风险较大时，可以考虑冻结Batch Normalization层。这通常是在训
+    练的最后几个epoch或在模型训练到某个指标达到期望水平后执行。在冻结Batch Normalization层之后，通常还会继续对其他层进行微调（fine-tuning）
+    以进一步提高模型在测试数据上的性能。
+    需要注意的是，冻结Batch Normalization层并不是适用于所有情况的通用策略。在某些特定任务或架构中，冻结Batch Normalization层可能不会带来明
+    显的性能改进，甚至可能导致性能下降。因此，在应用中需要进行实验和验证，确保冻结操作对于特定的模型和任务是有效的。
+    --------------------------------------------------------------------------------------------------------------------
+    为了解决这个问题，一种常见的做法是在训练的后期（通常是模型已经训练到较好的状态时），将Batch Normalization层固定，不再更新其参数，这个过程称
+    为“冻结Batch Normalization层”。这样做有以下几个原因和好处：
+    1.提高模型的泛化性能：通过冻结Batch Normalization层，模型在测试时使用的统计信息与训练时一致，不会受到测试数据的影响，从而提高了模型在未见
+    过数据上的泛化性能。
+    2.减少内存消耗：在评估模式下，Batch Normalization层不再需要计算并存储每个批次的均值和方差，这减少了内存的使用。
+    3.加快推理速度：由于冻结Batch Normalization层后，模型在推理时无需再计算均值和方差，推理速度会更快。
+    """
+    if freeze_bn:  # freeze_bn=True
         for module in segmenter.modules():
             if isinstance(module, nn.BatchNorm2d):
-                module.eval()
+                module.eval()  # 如果模块是nn.BatchNorm2d的实例，将调用eval()方法把模型改为评估模式，推理时不计算梯度，batch normalization的均值和方差都会固定，不进行更新。一般是在模型训练的某个阶段这么用，以确保在一些情况下固定Batch Normalization层可以提高模型的泛化性能。
     batch_time = AverageMeter()
     losses = AverageMeter()
 
