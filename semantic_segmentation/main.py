@@ -24,6 +24,20 @@ from tensorboardX import SummaryWriter
 
 # 创建 TensorboardX 的 SummaryWriter 对象
 writer = SummaryWriter('./logs/tokenfusion_experiment')
+
+
+import random
+def set_seed(seed):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    np.random.seed(seed)
+    random.seed(seed)
+# 例如，我们设定随机种子为 42
+set_seed(42)
+
+
 # define a global step counter
 global_step = 0
 
