@@ -283,7 +283,14 @@ def train(segmenter, input_types, train_loader, optimizer, epoch,
             # Compute loss and backpropagate
             loss += segm_crit(soft_output, target)
 
-        if lamda > 0:
+        """
+        在config中lamda是1e-4，在每个 block 的层上计算 L1 损失，并将其累加到 L1_loss 上，对于每个层中的mask(概率向量)，对 mask 中的每个
+        元素取绝对值，得到一个新的张量，表示绝对值后的概率向量，对绝对值概率向量中的所有元素进行求和，得到一个标量值，表示绝对值概率向量的总和。
+        这个过程对于每个层中的mask都会执行，并将各个层的L1损失值累加到L1_loss中。loss += lamda * L1_loss: 将 L1 损失值乘以权重lamda(如
+        果 lamda > 0)，然后将其添加到总损失 loss 中。这个步骤实现了将 L1 正则化损失（或称作 L1 惩罚）添加到总损失中的目的。loss 可能是在训
+        练 Segformer 模型时用于优化的损失函数，通过添加 L1 惩罚，有助于控制模型的复杂度，并鼓励模型产生更稀疏的权重分布，从而有助于防止过拟合。
+        """
+        if lamda > 0:  # 在config中是1e-4
             L1_loss = 0
             for mask in masks:
                 L1_loss += sum([torch.abs(m).sum().cuda() for m in mask])

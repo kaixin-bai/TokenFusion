@@ -117,6 +117,10 @@ class WeTr(nn.Module):
         return param_groups
 
     def forward(self, x):
+        """
+        这个类其实就是一个segformer，不同的是它把encoder和decoder分开写，然后把encoder里每个block中的经过softmax的score保存在masks中，
+        然后decoder依旧是传入x，但是masks就直接传出。
+        """
         x, masks = self.encoder(x)  # 输入的x: {list:2} 每个元组都是一个Tensor [1,3,486,625]，分别是rgb和depth，depth是三通道，直接扩充的
         x = [self.decoder(x[0]), self.decoder(x[1])] # x为{list:2}, 每个元素是一个{list:4}，其中是4个Tensor，shape分别是[1,64,117,157],[1,128,59,79],[1,320,30,40],[1,512,15,20]
         ens = 0

@@ -129,6 +129,7 @@ class Attention(nn.Module):
 class PredictorLG(nn.Module):
     """ Image to Patch Embedding from DydamicVit
     """
+
     def __init__(self, embed_dim=384):
         super().__init__()
         self.score_nets = nn.ModuleList([nn.Sequential(
@@ -208,9 +209,9 @@ class Block(nn.Module):
         # if mask is not None:
         #     norm = [norm_ * mask_.unsqueeze(2) for (norm_, mask_) in zip(norm, mask)]
         f = self.drop_path(self.attn(self.norm1(x), H, W, mask))
-        x = [x_ + f_ for (x_, f_) in zip (x, f)]
+        x = [x_ + f_ for (x_, f_) in zip(x, f)]
         f = self.drop_path(self.mlp(self.norm2(x), H, W))
-        x = [x_ + f_ for (x_, f_) in zip (x, f)]
+        x = [x_ + f_ for (x_, f_) in zip(x, f)]
         # if mask is not None:
         #     x = self.exchange(x, mask, mask_threshold=0.02)
         return x
@@ -234,7 +235,7 @@ class OverlapPatchEmbed(nn.Module):
         将输入图像中的每个小块（patch）转换为一个高维的向量（embedding）。这个操作被称为"Patch Embedding"，常用于处理图像数据。
         """
         self.proj = ModuleParallel(nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=stride,
-                              padding=(patch_size[0] // 2, patch_size[1] // 2)))
+                                             padding=(patch_size[0] // 2, patch_size[1] // 2)))
         self.norm = LayerNormParallel(embed_dim)
 
         self.apply(self._init_weights)
@@ -261,6 +262,7 @@ class OverlapPatchEmbed(nn.Module):
         x = self.norm(x)
         return x, H, W
 
+
 """
 segformer的实现
 ------------------------------------------------------------------------------------------------------------------------
@@ -276,6 +278,8 @@ def forward_features(self, x):：这个方法执行SegFormer的特征提取部�
 ------------------------------------------------------------------------------------------------------------------------
 def forward(self, x):：这个方法将调用forward_features方法来进行特征提取，注意力掩码被存储在masks列表中，用于后续的处理。
 """
+
+
 class MixVisionTransformer(nn.Module):
     def __init__(self, img_size=224, patch_size=16, in_chans=3, num_classes=1000, embed_dims=[64, 128, 256, 512],
                  num_heads=[1, 2, 4, 8], mlp_ratios=[4, 4, 4, 4], qkv_bias=False, qk_scale=None, drop_rate=0.,
@@ -283,7 +287,7 @@ class MixVisionTransformer(nn.Module):
                  depths=[3, 4, 6, 3], sr_ratios=[8, 4, 2, 1]):
         super().__init__()
         self.num_classes = num_classes
-        self.depths = depths
+        self.depths = depths  # [3,4,18,3], 3+4+18+3=28, depth是segformer的4个block中结构的重复次数
         self.embed_dims = embed_dims
 
         """
@@ -356,12 +360,14 @@ class MixVisionTransformer(nn.Module):
             m.weight.data.normal_(0, math.sqrt(2.0 / fan_out))
             if m.bias is not None:
                 m.bias.data.zero_()
+
     '''
     def init_weights(self, pretrained=None):
         if isinstance(pretrained, str):
             logger = get_root_logger()
             load_checkpoint(self, pretrained, map_location='cpu', strict=False, logger=logger)
     '''
+
     def reset_drop_path(self, drop_path_rate):
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, sum(self.depths))]
         cur = 0
@@ -467,6 +473,7 @@ class DWConv(nn.Module):
 
         return x
 
+
 class mit_b0(MixVisionTransformer):
     def __init__(self, **kwargs):
         super(mit_b0, self).__init__(
@@ -513,4 +520,3 @@ class mit_b5(MixVisionTransformer):
             patch_size=4, embed_dims=[64, 128, 320, 512], num_heads=[1, 2, 5, 8], mlp_ratios=[4, 4, 4, 4],
             qkv_bias=True, norm_layer=LayerNormParallel, depths=[3, 6, 40, 3], sr_ratios=[8, 4, 2, 1],
             drop_rate=0.0, drop_path_rate=0.1)
-
