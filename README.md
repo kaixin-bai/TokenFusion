@@ -167,6 +167,8 @@ python3 main.py --gpu 0 --backbone mit_b3 --resume ./ckpt/exp_name/model-best.pt
 python main.py --backbone mit_b3 -c exp_name --lamda 1e-6 --gpu 0
 # 启动tensorboard可视化
 tensorboard --logdir=logs
+# tensorboard可视化多个logs的命令
+tensorboard --logdir_spec=run2:./logs/tokenfusion_experiment/,run1:./logs_orig_selbst_train/tokenfusion_experimenselbts_train/
 ```
 
 其他：  \
