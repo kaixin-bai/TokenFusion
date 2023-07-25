@@ -5,6 +5,10 @@ num_parallel = 2
 
 
 class TokenExchange(nn.Module):
+    """
+    作者提供的tokenFusion方法：对x通过mask进行处理，把mask<0.02的部分用另一个模态的x替换
+    即在一个模态上未被激活的部分可能在另一个模态上会被激活，即有更强的特征，将这部分换掉来让两个模态互通
+    """
     def __init__(self):
         super(TokenExchange, self).__init__()
 
@@ -16,6 +20,21 @@ class TokenExchange(nn.Module):
         x1[mask[1] >= mask_threshold] = x[1][mask[1] >= mask_threshold]
         x1[mask[1] < mask_threshold] = x[0][mask[1] < mask_threshold]
         return [x0, x1]
+
+
+class TokenArgmax(nn.Module):
+    """
+    我们的一种尝试，不再使用mask_threshold,而是直接取两个模态里被激活的最大部分，最后返回的[new_x, new_x]两个一样，这两个会在后续的Block中被残差
+    """
+    def __init__(self):
+        super(TokenArgmax, self).__init__()
+
+    def forward(self, x, mask, mask_threshold):
+        # x: [B, N, C], mask: [B, N, 1]
+        new_x = torch.zeros_like(x[0])
+        new_x[mask[0] >= mask[1]] = x[0][mask[0] >= mask[1]]
+        new_x[mask[1] > mask[0]] = x[1][mask[1] > mask[0]]
+        return [new_x, new_x]
 
 
 class ModuleParallel(nn.Module):

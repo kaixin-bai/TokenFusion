@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from functools import partial
 
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
-from .modules import ModuleParallel, LayerNormParallel, num_parallel, TokenExchange
+from .modules import ModuleParallel, LayerNormParallel, num_parallel, TokenExchange, TokenArgmax
 
 
 class Mlp(nn.Module):
@@ -76,7 +76,7 @@ class Attention(nn.Module):
             self.sr = ModuleParallel(nn.Conv2d(dim, dim, kernel_size=sr_ratio, stride=sr_ratio))
             self.norm = LayerNormParallel(dim)
         self.exchange = TokenExchange()
-
+        # self.exchange = TokenArgmax()
         self.apply(self._init_weights)
 
     def _init_weights(self, m):
