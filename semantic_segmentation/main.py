@@ -442,6 +442,7 @@ def validate(segmenter, input_types, val_loader, epoch, num_classes=-1, save_ima
 
 def main():
     global args, best_iou
+    val_step = 0  # 在训练循环开始前初始化
     best_iou = 0
     args = get_arguments()
     args.num_stages = len(args.lr_enc)
@@ -533,7 +534,7 @@ def main():
         #     args.mom_enc, args.mom_dec,
         #     args.wd_enc, args.wd_dec,
         #     enc_params, dec_params, args.optim_dec)
-        val_step = 0  # 在训练循环开始前初始化
+
         for epoch in range(min(args.num_epoch[task_idx], total_epoch - epoch_start)):
             # Add for TensorBoardX: log learning rate
             writer.add_scalar('Train/Learning_rate', optimizer.param_groups[0]['lr'], global_step)
