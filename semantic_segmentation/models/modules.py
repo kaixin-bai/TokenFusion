@@ -25,6 +25,8 @@ class TokenExchange(nn.Module):
 class TokenArgmax(nn.Module):
     """
     我们的一种尝试，不再使用mask_threshold,而是直接取两个模态里被激活的最大部分，最后返回的[new_x, new_x]两个一样，这两个会在后续的Block中被残差
+    Epoch 284  (ens)     glob_acc=76.47    mean_acc=63.80    IoU=50.55
+    测试之后发现训练的收敛变快，但是验证集上效果不如tokenfusion
     """
     def __init__(self):
         super(TokenArgmax, self).__init__()
