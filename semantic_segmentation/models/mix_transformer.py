@@ -457,7 +457,7 @@ class MixVisionTransformer(nn.Module):
 
     def forward(self, x):
         x, masks = self.forward_features(x)
-        return x, masks
+        return x, masks  # x:list4中的tensor:[1,64,117,157],[1,128,59,79],[1,320,30,40],[1,512,15,20]
 
 
 class DWConv(nn.Module):
