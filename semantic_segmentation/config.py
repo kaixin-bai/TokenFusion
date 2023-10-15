@@ -8,10 +8,10 @@ import numpy as np
 # VAL_LIST = './data/nyudv2/val.txt'
 # DATASET PARAMETERS
 DATASET = 'nyudv2'
-TRAIN_DIR = '/data/net/dl_data/ProjectDatasets_bkx/nyudv2'  # 'Modify data path'
+TRAIN_DIR = '/data/net/dl_data/ProjectDatasets_bkx/TOKENFUSION/nyudv2'  # 'Modify data path'
 VAL_DIR = TRAIN_DIR
-TRAIN_LIST = '/data/net/dl_data/ProjectDatasets_bkx/nyudv2/train.txt'
-VAL_LIST = '/data/net/dl_data/ProjectDatasets_bkx/nyudv2/val.txt'
+TRAIN_LIST = '/data/net/dl_data/ProjectDatasets_bkx/TOKENFUSION/nyudv2/train.txt'
+VAL_LIST = '/data/net/dl_data/ProjectDatasets_bkx/TOKENFUSION/nyudv2/val.txt'
 
 
 SHORTER_SIDE = 350
