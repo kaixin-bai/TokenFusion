@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from . import mix_transformer
 from mmcv.cnn import ConvModule
 from .modules import num_parallel
+from torch.nn import GroupNorm
 
 
 class MLP(nn.Module):
@@ -109,6 +110,11 @@ class ModifiedSegFormerHead(nn.Module):
         self.ca_c3 = ChannelAttention(2 * c3_in_channels)
         self.ca_c4 = ChannelAttention(2 * c4_in_channels)
 
+        self.gn_c1 = GroupNorm(32, c1_in_channels)
+        self.gn_c2 = GroupNorm(32, c2_in_channels)
+        self.gn_c3 = GroupNorm(32, c3_in_channels)
+        self.gn_c4 = GroupNorm(32, c4_in_channels)
+
         # 1x1 convolution to reduce channel dimensions after concatenation
         self.conv_c1 = nn.Conv2d(2 * c1_in_channels, c1_in_channels, 1)
         self.conv_c2 = nn.Conv2d(2 * c2_in_channels, c2_in_channels, 1)
@@ -141,10 +147,10 @@ class ModifiedSegFormerHead(nn.Module):
         concat_c3 = torch.cat([s_c3, m_c3], dim=1)
         concat_c4 = torch.cat([s_c4, m_c4], dim=1)
 
-        fused_c1 = self.conv_c1(self.ca_c1(concat_c1))
-        fused_c2 = self.conv_c2(self.ca_c2(concat_c2))
-        fused_c3 = self.conv_c3(self.ca_c3(concat_c3))
-        fused_c4 = self.conv_c4(self.ca_c4(concat_c4))
+        fused_c1 = self.gn_c1(self.conv_c1(self.ca_c1(concat_c1)))
+        fused_c2 = self.gn_c2(self.conv_c2(self.ca_c2(concat_c2)))
+        fused_c3 = self.gn_c3(self.conv_c3(self.ca_c3(concat_c3)))
+        fused_c4 = self.gn_c4(self.conv_c4(self.ca_c4(concat_c4)))
 
         # Rest of the decoder part remains the same
         n, _, h, w = fused_c4.shape

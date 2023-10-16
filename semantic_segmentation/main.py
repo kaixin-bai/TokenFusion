@@ -484,7 +484,7 @@ def main():
     saver = Saver(args=vars(args), ckpt_dir=ckpt_dir, best_val=best_val,
                   condition=lambda x, y: x > y)  # keep checkpoint with the best validation score
 
-    lrs = [6e-5, 3e-5, 1.5e-5]
+    lrs = [6e-5, 3e-5, 1.5e-5, 1.5e-5]  # [6e-5, 3e-5, 1.5e-5]
 
     for task_idx in range(args.num_stages):
         optimizer = PolyWarmupAdamW(
