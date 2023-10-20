@@ -3,6 +3,32 @@ import torch
 
 num_parallel = 2
 
+class TokenFuse(nn.Module):
+    def __init__(self, dim, temperature=0.5, min_val=0.1, max_val=0.9):
+        super(TokenFuse, self).__init__()
+        # 初始化一个空间注意力层，用于深度模态
+        self.spatial_attn = nn.Sequential(
+            nn.Linear(dim, dim),
+            nn.ReLU(),
+            nn.Linear(dim, 1)
+        )
+        self.temperature = temperature
+        self.min_val = min_val
+        self.max_val = max_val
+
+    def forward(self, x):
+        x0, x1 = x[0], x[1]
+        # 使用x1 (即深度模态)计算空间注意力权重
+        logits = self.spatial_attn(x1)  # [B, N, 1]
+        # 用温度缩放调整logits
+        scaled_logits = logits / self.temperature
+        # 使用sigmoid获得attention权重，并限制范围
+        attention_weights = torch.sigmoid(scaled_logits)
+        attention_weights = torch.clamp(attention_weights, self.min_val, self.max_val)
+        # 使用attention_weights进行融合
+        x_fusion = attention_weights * x1 + (1 - attention_weights) * x0
+        return [x_fusion, x1]  # 注意这里，x1没有被更新
+
 
 class TokenExchange(nn.Module):
     """

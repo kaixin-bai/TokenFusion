@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from functools import partial
 
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
-from .modules import ModuleParallel, LayerNormParallel, num_parallel, TokenExchange, TokenArgmax
+from .modules import ModuleParallel, LayerNormParallel, num_parallel, TokenExchange, TokenArgmax, TokenFuse
 
 
 class Mlp(nn.Module):
@@ -75,7 +75,8 @@ class Attention(nn.Module):
         if sr_ratio > 1:
             self.sr = ModuleParallel(nn.Conv2d(dim, dim, kernel_size=sr_ratio, stride=sr_ratio))
             self.norm = LayerNormParallel(dim)
-        self.exchange = TokenExchange()
+        self.exchange = TokenFuse(dim)
+        # self.exchange = TokenExchange()
         # self.exchange = TokenArgmax()
         self.apply(self._init_weights)
 
@@ -94,7 +95,7 @@ class Attention(nn.Module):
             if m.bias is not None:
                 m.bias.data.zero_()
 
-    def forward(self, x, H, W, mask):
+    def forward(self, x, H, W):
         B, N, C = x[0].shape
         q = self.q(x)
         q = [q_.reshape(B, N, self.num_heads, C // self.num_heads).permute(0, 2, 1, 3) for q_ in q]
@@ -119,9 +120,10 @@ class Attention(nn.Module):
         x = self.proj(x)
         x = self.proj_drop(x)
 
-        if mask is not None:
-            x = [x_ * mask_.unsqueeze(2) for (x_, mask_) in zip(x, mask)]
-            x = self.exchange(x, mask, mask_threshold=0.02)
+        # if mask is not None:
+        #     x = [x_ * mask_.unsqueeze(2) for (x_, mask_) in zip(x, mask)]
+        #     x = self.exchange(x, mask, mask_threshold=0.02)
+        x = self.exchange(x)
 
         return x
 
@@ -202,13 +204,14 @@ class Block(nn.Module):
                 m.bias.data.zero_()
 
     def forward(self, x, H, W, mask=None):
+        mask = None
         B = x[0].shape[0]
         # norm1 = self.norm1(x)
         # score = self.score(norm1)
         # mask = [F.gumbel_softmax(score_.reshape(B, -1, 2), hard=True)[:, :, 0] for score_ in score]
         # if mask is not None:
         #     norm = [norm_ * mask_.unsqueeze(2) for (norm_, mask_) in zip(norm, mask)]
-        f = self.drop_path(self.attn(self.norm1(x), H, W, mask))
+        f = self.drop_path(self.attn(self.norm1(x), H, W))
         x = [x_ + f_ for (x_, f_) in zip(x, f)]
         f = self.drop_path(self.mlp(self.norm2(x), H, W))
         x = [x_ + f_ for (x_, f_) in zip(x, f)]
