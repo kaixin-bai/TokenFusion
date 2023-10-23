@@ -4,7 +4,7 @@ import torch
 num_parallel = 2
 
 class TokenFuse(nn.Module):
-    def __init__(self, dim, temperature=0.5, min_val=0.1, max_val=0.9):
+    def __init__(self, dim, temperature=0.2):
         super(TokenFuse, self).__init__()
         # 初始化一个空间注意力层，用于深度模态
         self.spatial_attn = nn.Sequential(
@@ -13,8 +13,8 @@ class TokenFuse(nn.Module):
             nn.Linear(dim, 1)
         )
         self.temperature = temperature
-        self.min_val = min_val
-        self.max_val = max_val
+        # self.min_val = min_val
+        # self.max_val = max_val
 
     def forward(self, x):
         x0, x1 = x[0], x[1]
@@ -24,10 +24,47 @@ class TokenFuse(nn.Module):
         scaled_logits = logits / self.temperature
         # 使用sigmoid获得attention权重，并限制范围
         attention_weights = torch.sigmoid(scaled_logits)
-        attention_weights = torch.clamp(attention_weights, self.min_val, self.max_val)
+        # attention_weights = torch.clamp(attention_weights, self.min_val, self.max_val)
         # 使用attention_weights进行融合
         x_fusion = attention_weights * x1 + (1 - attention_weights) * x0
-        return [x_fusion, x1]  # 注意这里，x1没有被更新
+
+        # # ======
+        # import matplotlib.pyplot as plt
+        # # 创建一个简单的函数，将输入数据进行可视化
+        # def visualize_tensor(tensor, title):
+        #     tensor_np = tensor.cpu().detach().numpy()
+        #     plt.imshow(tensor_np, cmap='jet')
+        #     plt.colorbar()
+        #     plt.title(title)
+        #     plt.show()
+        # # 创建一个简单的函数，将输入数据进行可视化
+        # def visualize_channels(tensor, title_prefix):
+        #     B, N, C = tensor.shape
+        #     tensor_np = tensor.cpu().detach().numpy().reshape(B, H, W, C)
+        #     # 创建一个绘图网格
+        #     fig, axs = plt.subplots(8, 8, figsize=(15, 15))
+        #     for i in range(8):
+        #         for j in range(8):
+        #             ax = axs[i][j]
+        #             if i * 8 + j < C:
+        #                 ax.imshow(tensor_np[0, :, :, i * 8 + j], cmap='jet')
+        #                 ax.set_title(f'{title_prefix} - Channel {i * 8 + j}')
+        #                 ax.axis('off')
+        #     plt.tight_layout()
+        #     plt.show()
+        # print("debug attention_weights.shape[1]: ", attention_weights.shape[1])
+        # if attention_weights.shape[1] == 18369:
+        #     H, W = 117, 157
+        #     # 将attention_weights调整为图像的形状并可视化
+        #     attention_weights_reshaped = attention_weights.reshape(H, W)
+        #     visualize_tensor(attention_weights_reshaped, "Attention Weights")
+        #     # 对x0的每个通道进行可视化
+        #     visualize_channels(x0, "x0")
+        #     # 对x1的每个通道进行可视化
+        #     visualize_channels(x1, "x1")
+        # # ======
+
+        return [x0, x_fusion]  # 注意这里，x1没有被更新
 
 
 class TokenExchange(nn.Module):

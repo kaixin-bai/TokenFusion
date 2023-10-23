@@ -132,7 +132,7 @@ class ModifiedSegFormerHead(nn.Module):
         # Channel attention mechanism
         attention_applied = self.ca(x_s, x_m)
         # Fusion of features with attention and residual connection
-        fused_features = attention_applied + x_m  # reinforcing the m_features
+        fused_features = attention_applied + x_s
         # Prediction layer
         x = self.linear_pred(fused_features)
         # x = self.linear_pred(x_s)
