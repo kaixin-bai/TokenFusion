@@ -56,7 +56,9 @@ class Mlp(nn.Module):
 
         # SCRATCHING VISUAL TRANSFORMER’S BACK WITH UNIFORM ATTENTION
         # https://arxiv.org/pdf/2210.08457.pdf
-        return (x + x.mean(dim=1, keepdim=True)) * 0.5
+        # return (x + x.mean(dim=1, keepdim=True)) * 0.5
+        return [(tensor + tensor.mean(dim=1, keepdim=True)) * 0.5 for tensor in x]
+
 
 
 class Attention(nn.Module):
