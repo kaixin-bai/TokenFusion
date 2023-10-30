@@ -31,6 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import cv2
 import numpy as np
 import torch
+import random
 
 # Usual dtypes for common modalities
 KEYS_TO_DTYPES = {
@@ -165,6 +166,41 @@ class CropAlignToMask(object):
         input = input[h: input_h - h - del_h, w: input_w - w - del_w]
         assert input.shape[:2] == (mask_h, mask_w)
         return input
+
+class RandomAffine(object):
+    """Apply random affine transformations to the image and the mask."""
+
+    def __init__(self, max_degree=30, max_translate=0.1, max_scale=0.2, max_shear=10):
+        self.max_degree = max_degree
+        self.max_translate = max_translate
+        self.max_scale = max_scale
+        self.max_shear = max_shear
+
+    def __call__(self, sample):
+        height, width = sample['rgb'].shape[:2]
+        # 随机角度
+        angle = np.random.uniform(-self.max_degree, self.max_degree)
+        # 随机平移
+        max_dx = self.max_translate * width
+        max_dy = self.max_translate * height
+        translations = (np.random.uniform(-max_dx, max_dx), np.random.uniform(-max_dy, max_dy))
+        # 随机缩放
+        scale = 1 + np.random.uniform(-self.max_scale, self.max_scale)
+        # 随机剪切
+        shear = np.random.uniform(-self.max_shear, self.max_shear)
+        # 计算仿射变换矩阵
+        M = cv2.getRotationMatrix2D((width / 2, height / 2), angle, scale)
+        M[0, 2] += translations[0]
+        M[1, 2] += translations[1]
+        # 对 RGB 图像和掩码应用仿射变换
+        sample['rgb'] = cv2.warpAffine(sample['rgb'], M, (width, height), flags=cv2.INTER_LINEAR)
+        sample['mask'] = cv2.warpAffine(sample['mask'], M, (width, height), flags=cv2.INTER_NEAREST)
+        # 对深度图像应用仿射变换（如果存在）
+        if 'depth' in sample['inputs']:
+            sample['depth'] = cv2.warpAffine(sample['depth'], M, (width, height), flags=cv2.INTER_NEAREST)
+
+        return sample
+
 
 
 class ResizeAlignToMask(object):

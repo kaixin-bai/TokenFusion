@@ -176,7 +176,7 @@ def create_loaders(dataset, inputs, train_dir, val_dir, train_list, val_list,
     # Custom libraries
     from utils.datasets import SegDataset as Dataset
     from utils.transforms import Normalise, Pad, RandomCrop, RandomMirror, ResizeAndScale, \
-        CropAlignToMask, ResizeAlignToMask, ToTensor, ResizeInputs
+        CropAlignToMask, ResizeAlignToMask, ToTensor, ResizeInputs, RandomAffine
 
     input_names, input_mask_idxs = ['rgb', 'depth'], [0, 2, 1]
 
@@ -188,6 +188,7 @@ def create_loaders(dataset, inputs, train_dir, val_dir, train_list, val_list,
         RandomMirror(),
         RandomCrop(crop_size),
         ResizeInputs(input_size),
+        RandomAffine(),
         Normalise(*normalise_params),
         ToTensor()
     ])
@@ -484,7 +485,7 @@ def main():
     saver = Saver(args=vars(args), ckpt_dir=ckpt_dir, best_val=best_val,
                   condition=lambda x, y: x > y)  # keep checkpoint with the best validation score
 
-    lrs = [6e-5, 3e-5, 1.5e-5]
+    lrs = [1.0e-4, 6.0e-5, 3.0e-5, 1.5e-5]  # [6e-5, 3e-5, 1.5e-5]
 
     for task_idx in range(args.num_stages):
         optimizer = PolyWarmupAdamW(

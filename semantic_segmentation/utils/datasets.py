@@ -232,6 +232,7 @@ class SegDataset(Dataset):
         """
         img_arr = np.array(Image.open(x))
         if len(img_arr.shape) == 2:  # grayscale
+            img_arr = inpaint(img_arr, rescale_factor=0.5)
             img_arr = np.tile(img_arr, [3, 1, 1]).transpose(1, 2, 0)
         return img_arr
 

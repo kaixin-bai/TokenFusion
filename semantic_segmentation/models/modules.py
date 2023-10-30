@@ -71,30 +71,53 @@ num_parallel = 2
 class TokenFuse(nn.Module):
     def __init__(self, dim):
         super(TokenFuse, self).__init__()
-        # 定义一个线性层用于计算Query（Q）, Key（K）和 Value（V）
-        self.qkv = nn.Linear(dim, dim * 3)
+        self.dim = dim
         self.num_heads = 8
         self.head_dim = dim // self.num_heads
-        assert self.head_dim * self.num_heads == dim, "embedding_dim must be divisible by num_heads"
-        # 为了使输出保持与原代码一致，我们使用一个线性层来将多头注意力的输出转换回原始维度
+        assert self.head_dim * self.num_heads == dim, "dim must be divisible by num_heads"
+
+        # 定义线性层用于计算Q, K, V
+        self.qkv_rgb = nn.Linear(dim, dim * 3)  # 用于RGB特征
+        self.qkv_depth = nn.Linear(dim, dim * 2)  # 用于深度特征（只计算K和V）
         self.fc_out = nn.Linear(dim, dim)
 
+        # 自适应权重机制
+        self.adaptive_weights = nn.Parameter(torch.ones(2))
+
     def forward(self, x):
-        x0, x1 = x[0], x[1]
-        B, N, C = x1.size()
-        # 使用线性层计算Q, K, V
-        qkv = self.qkv(x1).reshape(B, N, 3, self.num_heads, self.head_dim)
-        q, k, v = qkv[:, :, 0, :, :], qkv[:, :, 1, :, :], qkv[:, :, 2, :, :]  # each is (B, N, num_heads, head_dim)
-        # 计算注意力得分
-        attn_scores = torch.einsum("bnqd,bnkd->bnqk", q, k) / self.head_dim ** 0.5  # (B, N, num_heads, N)
-        attn_weights = F.softmax(attn_scores, dim=-1)  # (B, N, num_heads, N)
+        x_rgb, x_depth = x
+
+        B, N, C = x_rgb.size()
+
+        # 处理RGB特征
+        qkv_rgb = self.qkv_rgb(x_rgb).reshape(B, N, 3, self.num_heads, self.head_dim)
+        q_rgb, k_rgb, v_rgb = qkv_rgb[:, :, 0, :, :], qkv_rgb[:, :, 1, :, :], qkv_rgb[:, :, 2, :, :]
+
+        # 处理深度特征（只计算K和V）
+        kv_depth = self.qkv_depth(x_depth).reshape(B, N, 2, self.num_heads, self.head_dim)
+        k_depth, v_depth = kv_depth[:, :, 0, :, :], kv_depth[:, :, 1, :, :]
+
+        # 交叉注意力
+        attn_scores_rgb = torch.einsum("bnqd,bnkd->bnqk", q_rgb, k_depth) / self.head_dim ** 0.5
+        attn_scores_depth = torch.einsum("bnqd,bnkd->bnqk", q_rgb, k_rgb) / self.head_dim ** 0.5
+
+        attn_weights_rgb = F.softmax(attn_scores_rgb, dim=-1)
+        attn_weights_depth = F.softmax(attn_scores_depth, dim=-1)
+
         # 计算加权的值
-        weighted_values = torch.einsum("bnqk,bnvd->bnqd", attn_weights, v)  # (B, N, num_heads, head_dim)
-        weighted_values = weighted_values.reshape(B, N, C)  # (B, N, C)
-        # 使用线性层将多头注意力的输出转换回原始维度
-        x_fusion = self.fc_out(weighted_values)  # (B, N, C)
-        # 保持与原代码一致的输出
-        return [x0, x_fusion]
+        weighted_values_rgb = torch.einsum("bnqk,bnvd->bnqd", attn_weights_rgb, v_depth)
+        weighted_values_depth = torch.einsum("bnqk,bnvd->bnqd", attn_weights_depth, v_rgb)
+
+        # 自适应权重融合
+        adaptive_rgb_weight, adaptive_depth_weight = torch.sigmoid(self.adaptive_weights)
+        x_fusion = adaptive_rgb_weight * weighted_values_rgb + adaptive_depth_weight * weighted_values_depth
+        x_fusion = x_fusion.reshape(B, N, C)
+
+        # 输出转换
+        x_fusion = self.fc_out(x_fusion)
+
+        return [x_rgb, x_fusion]
+
 
 
 class TokenExchange(nn.Module):
