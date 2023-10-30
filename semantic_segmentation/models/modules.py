@@ -1,70 +1,100 @@
 import torch.nn as nn
+import torch.nn.functional as F
 import torch
 
 num_parallel = 2
 
+# class TokenFuse(nn.Module):
+#     def __init__(self, dim, temperature=0.2):
+#         super(TokenFuse, self).__init__()
+#         # 初始化一个空间注意力层，用于深度模态
+#         self.spatial_attn = nn.Sequential(
+#             nn.Linear(dim, dim),
+#             nn.ReLU(),
+#             nn.Linear(dim, 1)
+#         )
+#         self.temperature = temperature
+#         # self.min_val = min_val
+#         # self.max_val = max_val
+#
+#     def forward(self, x):
+#         x0, x1 = x[0], x[1]
+#         # 使用x1 (即深度模态)计算空间注意力权重
+#         logits = self.spatial_attn(x1)  # [B, N, 1]
+#         # 用温度缩放调整logits
+#         scaled_logits = logits / self.temperature
+#         # 使用sigmoid获得attention权重，并限制范围
+#         attention_weights = torch.sigmoid(scaled_logits)
+#         # attention_weights = torch.clamp(attention_weights, self.min_val, self.max_val)
+#         # 使用attention_weights进行融合
+#         x_fusion = attention_weights * x1 + (1 - attention_weights) * x0
+#
+#         # # ======
+#         # import matplotlib.pyplot as plt
+#         # # 创建一个简单的函数，将输入数据进行可视化
+#         # def visualize_tensor(tensor, title):
+#         #     tensor_np = tensor.cpu().detach().numpy()
+#         #     plt.imshow(tensor_np, cmap='jet')
+#         #     plt.colorbar()
+#         #     plt.title(title)
+#         #     plt.show()
+#         # # 创建一个简单的函数，将输入数据进行可视化
+#         # def visualize_channels(tensor, title_prefix):
+#         #     B, N, C = tensor.shape
+#         #     tensor_np = tensor.cpu().detach().numpy().reshape(B, H, W, C)
+#         #     # 创建一个绘图网格
+#         #     fig, axs = plt.subplots(8, 8, figsize=(15, 15))
+#         #     for i in range(8):
+#         #         for j in range(8):
+#         #             ax = axs[i][j]
+#         #             if i * 8 + j < C:
+#         #                 ax.imshow(tensor_np[0, :, :, i * 8 + j], cmap='jet')
+#         #                 ax.set_title(f'{title_prefix} - Channel {i * 8 + j}')
+#         #                 ax.axis('off')
+#         #     plt.tight_layout()
+#         #     plt.show()
+#         # print("debug attention_weights.shape[1]: ", attention_weights.shape[1])
+#         # if attention_weights.shape[1] == 18369:
+#         #     H, W = 117, 157
+#         #     # 将attention_weights调整为图像的形状并可视化
+#         #     attention_weights_reshaped = attention_weights.reshape(H, W)
+#         #     visualize_tensor(attention_weights_reshaped, "Attention Weights")
+#         #     # 对x0的每个通道进行可视化
+#         #     visualize_channels(x0, "x0")
+#         #     # 对x1的每个通道进行可视化
+#         #     visualize_channels(x1, "x1")
+#         # # ======
+#
+#         return [x0, x_fusion]  # 注意这里，x1没有被更新
+
+
 class TokenFuse(nn.Module):
-    def __init__(self, dim, temperature=0.2):
+    def __init__(self, dim):
         super(TokenFuse, self).__init__()
-        # 初始化一个空间注意力层，用于深度模态
-        self.spatial_attn = nn.Sequential(
-            nn.Linear(dim, dim),
-            nn.ReLU(),
-            nn.Linear(dim, 1)
-        )
-        self.temperature = temperature
-        # self.min_val = min_val
-        # self.max_val = max_val
+        # 定义一个线性层用于计算Query（Q）, Key（K）和 Value（V）
+        self.qkv = nn.Linear(dim, dim * 3)
+        self.num_heads = 8
+        self.head_dim = dim // self.num_heads
+        assert self.head_dim * self.num_heads == dim, "embedding_dim must be divisible by num_heads"
+        # 为了使输出保持与原代码一致，我们使用一个线性层来将多头注意力的输出转换回原始维度
+        self.fc_out = nn.Linear(dim, dim)
 
     def forward(self, x):
         x0, x1 = x[0], x[1]
-        # 使用x1 (即深度模态)计算空间注意力权重
-        logits = self.spatial_attn(x1)  # [B, N, 1]
-        # 用温度缩放调整logits
-        scaled_logits = logits / self.temperature
-        # 使用sigmoid获得attention权重，并限制范围
-        attention_weights = torch.sigmoid(scaled_logits)
-        # attention_weights = torch.clamp(attention_weights, self.min_val, self.max_val)
-        # 使用attention_weights进行融合
-        x_fusion = attention_weights * x1 + (1 - attention_weights) * x0
-
-        # # ======
-        # import matplotlib.pyplot as plt
-        # # 创建一个简单的函数，将输入数据进行可视化
-        # def visualize_tensor(tensor, title):
-        #     tensor_np = tensor.cpu().detach().numpy()
-        #     plt.imshow(tensor_np, cmap='jet')
-        #     plt.colorbar()
-        #     plt.title(title)
-        #     plt.show()
-        # # 创建一个简单的函数，将输入数据进行可视化
-        # def visualize_channels(tensor, title_prefix):
-        #     B, N, C = tensor.shape
-        #     tensor_np = tensor.cpu().detach().numpy().reshape(B, H, W, C)
-        #     # 创建一个绘图网格
-        #     fig, axs = plt.subplots(8, 8, figsize=(15, 15))
-        #     for i in range(8):
-        #         for j in range(8):
-        #             ax = axs[i][j]
-        #             if i * 8 + j < C:
-        #                 ax.imshow(tensor_np[0, :, :, i * 8 + j], cmap='jet')
-        #                 ax.set_title(f'{title_prefix} - Channel {i * 8 + j}')
-        #                 ax.axis('off')
-        #     plt.tight_layout()
-        #     plt.show()
-        # print("debug attention_weights.shape[1]: ", attention_weights.shape[1])
-        # if attention_weights.shape[1] == 18369:
-        #     H, W = 117, 157
-        #     # 将attention_weights调整为图像的形状并可视化
-        #     attention_weights_reshaped = attention_weights.reshape(H, W)
-        #     visualize_tensor(attention_weights_reshaped, "Attention Weights")
-        #     # 对x0的每个通道进行可视化
-        #     visualize_channels(x0, "x0")
-        #     # 对x1的每个通道进行可视化
-        #     visualize_channels(x1, "x1")
-        # # ======
-
-        return [x0, x_fusion]  # 注意这里，x1没有被更新
+        B, N, C = x1.size()
+        # 使用线性层计算Q, K, V
+        qkv = self.qkv(x1).reshape(B, N, 3, self.num_heads, self.head_dim)
+        q, k, v = qkv[:, :, 0, :, :], qkv[:, :, 1, :, :], qkv[:, :, 2, :, :]  # each is (B, N, num_heads, head_dim)
+        # 计算注意力得分
+        attn_scores = torch.einsum("bnqd,bnkd->bnqk", q, k) / self.head_dim ** 0.5  # (B, N, num_heads, N)
+        attn_weights = F.softmax(attn_scores, dim=-1)  # (B, N, num_heads, N)
+        # 计算加权的值
+        weighted_values = torch.einsum("bnqk,bnvd->bnqd", attn_weights, v)  # (B, N, num_heads, head_dim)
+        weighted_values = weighted_values.reshape(B, N, C)  # (B, N, C)
+        # 使用线性层将多头注意力的输出转换回原始维度
+        x_fusion = self.fc_out(weighted_values)  # (B, N, C)
+        # 保持与原代码一致的输出
+        return [x0, x_fusion]
 
 
 class TokenExchange(nn.Module):
