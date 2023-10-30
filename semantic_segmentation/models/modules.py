@@ -119,7 +119,6 @@ class TokenFuse(nn.Module):
         return [x_rgb, x_fusion]
 
 
-
 class TokenExchange(nn.Module):
     """
     作者提供的tokenFusion方法：对x通过mask进行处理，把mask<0.02的部分用另一个模态的x替换

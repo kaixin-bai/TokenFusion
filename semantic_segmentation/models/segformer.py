@@ -220,7 +220,7 @@ class WeTr(nn.Module):
         self.num_classes = num_classes  # 40
         self.embedding_dim = embedding_dim  # 256
         self.feature_strides = [4, 8, 16, 32]
-        self.num_parallel = num_parallel  # 2
+        self.num_parallel = 1 # num_parallel  # 2
         # self.in_channels = [32, 64, 160, 256]
         # self.in_channels = [64, 128, 320, 512]
 
@@ -261,7 +261,7 @@ class WeTr(nn.Module):
         """
         x, masks = self.encoder(x)  # 输入的x: {list:2} 每个元组都是一个Tensor [1,3,486,625]，分别是rgb和depth，depth是三通道，直接扩充的
         # x = [self.decoder(x[0]), self.decoder(x[1])] # x为{list:2}, 每个元素是一个{list:4}，其中是4个Tensor，shape分别是[1,64,117,157],[1,128,59,79],[1,320,30,40],[1,512,15,20]
-        x = [self.decoder(s_features=x[2], m_features=x[0]), self.decoder(s_features=x[2], m_features=x[1])]
+        x = [self.decoder(s_features=x[0], m_features=x[1])]
         ens = 0
         alpha_soft = F.softmax(self.alpha)
         for l in range(self.num_parallel):
